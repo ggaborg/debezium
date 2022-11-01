@@ -43,6 +43,7 @@ CREATE TABLE `tblSRCHjob_desc` (`description_id` bigint(20) unsigned NOT NULL AU
 create table invisible_column_test(id int, col1 int INVISIBLE);
 create table visible_column_test(id int, col1 int VISIBLE);
 create table table_with_buckets(id int(11) auto_increment NOT NULL COMMENT 'ID', buckets int(11) NOT NULL COMMENT '分桶数');
+create table statement(id int);
 
 CREATE TABLE table_items (id INT, purchased DATE)
     PARTITION BY RANGE( YEAR(purchased) )
@@ -161,6 +162,13 @@ CREATE TABLE `auth_realm_clients` (
 PRIMARY KEY (`pk_realm`),
 KEY `auth_realms_auth_realm_clients` (`fk_realm`)
 ) START TRANSACTION ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+create table `site_checker_b_sonet_group_favorites` (
+USER_ID int(11) not null,
+GROUP_ID int(11) not null,
+DATE_ADD datetime DEFAULT NULL,
+primary key (USER_ID, GROUP_ID)
+);
 #end
 #begin
 -- Rename table
@@ -295,6 +303,7 @@ create algorithm = merge view my_view2(col1, col2) as select * from t2 with chec
 create or replace definer = 'ivan'@'%' view my_view3 as select count(*) from t3;
 create or replace definer = current_user sql security invoker view my_view4(c1, 1c, _, c1_2) 
 	as select * from  (t1 as tt1, t2 as tt2) inner join t1 on t1.col1 = tt1.col1;
+create view v_some_table as (with a as (select * from some_table) select * from a);
 
 #end
 #begin
@@ -463,6 +472,67 @@ BEGIN
     SET unique_checks=off;
     SET unique_checks=on;
 END; -- //-- delimiter ;
+#end
+#begin
+CREATE DEFINER=`prod_migrations`@`%` PROCEDURE `upsert_virtual_item`(IN name VARCHAR(45), IN type TINYINT UNSIGNED)
+BEGIN
+    SET @merchantId := (SELECT merchant_id FROM merchant LIMIT 1);
+    IF @merchantId > 0 THEN
+        SET @rows := (SELECT COUNT(*) FROM item WHERE item_type = type);
+        IF @rows > 0 THEN
+UPDATE item SET
+                merchant_id = @merchantId,
+                cz_title = name,
+                price = 0,
+                orderer = 2,
+                takeaway = 0,
+                currency_id = (
+                    SELECT currency_currency_id
+                    FROM merchant
+                    WHERE merchant_id = @merchantId
+                ),
+                tax_vat_id = (
+                    SELECT tax_vat.tax_vat_id
+                    FROM tax_vat
+                             JOIN merchant
+                                  ON merchant.place_country_id = tax_vat.country_id
+                                      AND merchant.merchant_id = @merchantId
+                    WHERE tax_vat.default = 1
+                ),
+                item_measure_id = 1,
+                kitchen_print = 0,
+                deleted = 0,
+                virtual = 1
+WHERE item_type = type;
+ELSE
+            INSERT INTO item SET
+                merchant_id = @merchantId,
+                cz_title = name,
+                price = 0,
+                orderer = 2,
+                takeaway = 0,
+                currency_id = (
+                    SELECT currency_currency_id
+                    FROM merchant
+                    WHERE merchant_id = @merchantId
+                ),
+                tax_vat_id = (
+                    SELECT tax_vat.tax_vat_id
+                    FROM tax_vat
+                    JOIN merchant
+                        ON merchant.place_country_id = tax_vat.country_id
+                        AND merchant.merchant_id = @merchantId
+                    WHERE tax_vat.default = 1
+                ),
+                item_measure_id = 1,
+                kitchen_print = 0,
+                deleted = 0,
+                virtual = 1,
+                item_type = type
+            ;
+END IF;
+END IF;
+END
 #end
 #begin
 -- Create Role

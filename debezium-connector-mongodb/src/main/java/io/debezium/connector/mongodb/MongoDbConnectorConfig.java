@@ -127,22 +127,37 @@ public class MongoDbConnectorConfig extends CommonConnectorConfig {
         /**
          * Change capture based on MongoDB Change Streams support.
          */
-        CHANGE_STREAMS("change_streams", true, false),
+        CHANGE_STREAMS("change_streams", true, false, false),
 
         /**
          * Change capture based on MongoDB change Streams support.
          * The update message will contain the full document.
          */
-        CHANGE_STREAMS_UPDATE_FULL("change_streams_update_full", true, true);
+        CHANGE_STREAMS_UPDATE_FULL("change_streams_update_full", true, true, false),
+
+        /**
+         * Change capture based on MongoDB Change Streams support with pre-image.
+         * When applicable, the change event will include the full document before change.
+         */
+        CHANGE_STREAMS_WITH_PRE_IMAGE("change_streams_with_pre_image", true, false, true),
+
+        /**
+         * Change capture based on MongoDB change Streams support with pre-image.
+         * When applicable, the change event will include the full document before change.
+         * The update message will contain the full document.
+         */
+        CHANGE_STREAMS_UPDATE_FULL_WITH_PRE_IMAGE("change_streams_update_full_with_pre_image", true, true, true);
 
         private final String value;
         private final boolean changeStreams;
         private final boolean fullUpdate;
+        private final boolean includePreImage;
 
-        private CaptureMode(String value, boolean changeStreams, boolean fullUpdate) {
+        private CaptureMode(String value, boolean changeStreams, boolean fullUpdate, boolean includePreImage) {
             this.value = value;
             this.changeStreams = changeStreams;
             this.fullUpdate = fullUpdate;
+            this.includePreImage = includePreImage;
         }
 
         @Override
@@ -190,6 +205,10 @@ public class MongoDbConnectorConfig extends CommonConnectorConfig {
 
         public boolean isFullUpdate() {
             return fullUpdate;
+        }
+
+        public boolean isIncludePreImage() {
+            return includePreImage;
         }
     }
 
@@ -349,6 +368,15 @@ public class MongoDbConnectorConfig extends CommonConnectorConfig {
             .withDefault(0)
             .withDescription("The socket timeout, given in milliseconds. Defaults to 0 ms.");
 
+    public static final Field HEARTBEAT_FREQUENCY_MS = Field.create("mongodb.heartbeat.frequency.ms")
+            .withDisplayName("Heartbeat frequency ms")
+            .withType(Type.INT)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 7))
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDefault(10_000)
+            .withDescription("The frequency that the cluster monitor attempts to reach each server. Defaults to 10 seconds (10,000 ms).");
+
     /**
      * A comma-separated list of regular expressions that match the databases to be monitored.
      * Must not be used with {@link #DATABASE_EXCLUDE_LIST}.
@@ -500,6 +528,7 @@ public class MongoDbConnectorConfig extends CommonConnectorConfig {
                     CONNECT_BACKOFF_INITIAL_DELAY_MS,
                     CONNECT_BACKOFF_MAX_DELAY_MS,
                     CONNECT_TIMEOUT_MS,
+                    HEARTBEAT_FREQUENCY_MS,
                     SOCKET_TIMEOUT_MS,
                     SERVER_SELECTION_TIMEOUT_MS,
                     MONGODB_POLL_INTERVAL_MS,
@@ -539,7 +568,7 @@ public class MongoDbConnectorConfig extends CommonConnectorConfig {
     private final int cursorMaxAwaitTimeMs;
 
     public MongoDbConnectorConfig(Configuration config) {
-        super(config, config.getString(CommonConnectorConfig.TOPIC_PREFIX), DEFAULT_SNAPSHOT_FETCH_SIZE);
+        super(config, DEFAULT_SNAPSHOT_FETCH_SIZE);
 
         String snapshotModeValue = config.getString(MongoDbConnectorConfig.SNAPSHOT_MODE);
         this.snapshotMode = SnapshotMode.parse(snapshotModeValue, MongoDbConnectorConfig.SNAPSHOT_MODE.defaultValueAsString());

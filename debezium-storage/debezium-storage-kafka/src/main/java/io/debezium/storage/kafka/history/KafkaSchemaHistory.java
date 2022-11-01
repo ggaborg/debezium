@@ -67,6 +67,7 @@ import io.debezium.relational.history.SchemaHistory;
 import io.debezium.relational.history.SchemaHistoryException;
 import io.debezium.relational.history.SchemaHistoryListener;
 import io.debezium.util.Collect;
+import io.debezium.util.Loggings;
 import io.debezium.util.Threads;
 
 /**
@@ -344,10 +345,10 @@ public class KafkaSchemaHistory extends AbstractSchemaHistory {
                         }
                     }
                     catch (final IOException e) {
-                        LOGGER.error("Error while deserializing history record '{}'", record, e);
+                        Loggings.logErrorAndTraceRecord(LOGGER, record, "Error while deserializing history record", e);
                     }
                     catch (final Exception e) {
-                        LOGGER.error("Unexpected exception while processing record '{}'", record, e);
+                        Loggings.logErrorAndTraceRecord(LOGGER, record, "Unexpected exception while processing record", e);
                         throw e;
                     }
                 }

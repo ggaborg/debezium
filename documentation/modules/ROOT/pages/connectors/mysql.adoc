@@ -908,6 +908,7 @@ The value portion of a change event for a change to this table is described for:
 * <<mysql-primary-key-updates,Primary key updates>>
 * <<mysql-delete-events,_delete_ events>>
 * <<mysql-tombstone-events,Tombstone events>>
+* <<mysql-truncate-events,_truncate_ events>>
 
 // Type: continue
 [id="mysql-create-events"]
@@ -1369,6 +1370,81 @@ MySQL connector events are designed to work with link:{link-kafka-docs}/#compact
 [id="mysql-tombstone-events"]
 === Tombstone events
 When a row is deleted, the _delete_ event value still works with log compaction, because Kafka can remove all earlier messages that have that same key. However, for Kafka to remove all messages that have that same key, the message value must be `null`. To make this possible, after {prodname}’s MySQL connector emits a _delete_ event, the connector emits a special tombstone event that has the same key but a `null` value.
+
+// Type: continue
+[id="mysql-truncate-events"]
+=== _truncate_ events
+A  _truncate_ change event signals that a table has been truncated.
+The message key is `null` in this case, the message value looks like this:
+
+[source,json,indent=0,subs="+attributes"]
+----
+{
+    "schema": { ... },
+    "payload": {
+        "source": { // <1>
+            "version": "{debezium-version}",
+            "name": "mysql-server-1",
+            "connector": "mysql",
+            "name": "mysql-server-1",
+            "ts_ms": 1465581029100,
+            "snapshot": false,
+            "db": "inventory",
+            "table": "customers",
+            "server_id": 223344,
+            "gtid": null,
+            "file": "mysql-bin.000003",
+            "pos": 484,
+            "row": 0,
+            "thread": 7,
+            "query": "UPDATE customers SET first_name='Anne Marie' WHERE id=1004"
+        },
+        "op": "t", // <2>
+        "ts_ms": 1465581029523 // <3>
+    }
+}
+----
+
+.Descriptions of _truncate_ event value fields
+[cols="1,2,7",options="header"]
+|===
+|Item |Field name |Description
+
+|1
+|`source`
+a|Mandatory field that describes the source metadata for the event. In a _truncate_ event value, the `source` field structure is the same as for _create_, _update_, and _delete_ events for the same table, provides this metadata:
+
+* {prodname} version
+* Connector type and name
+* Binlog name where the event was recorded
+* Binlog position
+* Row within the event
+* If the event was part of a snapshot
+* Name of the database and table
+* ID of the MySQL thread that truncated the event (non-snapshot only)
+* MySQL server ID (if available)
+* Timestamp for when the change was made in the database
+
+|2
+|`op`
+a|Mandatory string that describes the type of operation. The `op` field value is `t`, signifying that this table was truncated.
+
+|3
+|`ts_ms`
+a|Optional field that displays the time at which the connector processed the event. The time is based on the system clock in the JVM running the Kafka Connect task.  +
++
+In the `source` object, `ts_ms` indicates the time that the change was made in the database. By comparing the value for `payload.source.ts_ms` with the value for `payload.ts_ms`, you can determine the lag between the source database update and {prodname}.
+
+|===
+
+In case a single `TRUNCATE` statement applies to multiple tables,
+one _truncate_ change event record for each truncated table will be emitted.
+
+Note that since _truncate_ events represent a change made to an entire table and don't have a message key,
+unless you're working with topics with a single partition,
+there are no ordering guarantees for the change events pertaining to a table (_create_, _update_, etc.) and _truncate_ events for that table.
+For instance a consumer may receive an _update_ event only after a _truncate_ event for that table,
+when those events are read from different partitions.
 
 // Type: reference
 // ModuleID: how-debezium-mysql-connectors-map-data-types
@@ -2484,45 +2560,94 @@ The connector is also unable to recover its database schema history topic.
 
 |[[mysql-property-database-include-list]]<<mysql-property-database-include-list, `+database.include.list+`>>
 |_empty string_
-|An optional, comma-separated list of regular expressions that match the names of the databases for which to capture changes. The connector does not capture changes in any database whose name is not in `database.include.list`. By default, the connector captures changes in all databases.
-Do not also set the `database.exclude.list` connector confiuration property.
+|An optional, comma-separated list of regular expressions that match the names of the databases for which to capture changes.
+The connector does not capture changes in any database whose name is not in `database.include.list`.
+By default, the connector captures changes in all databases. +
+
+To match the name of a database, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the database; it does not match substrings that might be present in a database name. +
+If you include this property in the configuration, do not also set the `database.exclude.list` property.
 
 |[[mysql-property-database-exclude-list]]<<mysql-property-database-exclude-list, `+database.exclude.list+`>>
 |_empty string_
-|An optional, comma-separated list of regular expressions that match the names of databases for which you do not want to capture changes. The connector captures changes in any database whose name is not in the `database.exclude.list`.
-Do not also set the `database.include.list` connector configuration property.
+|An optional, comma-separated list of regular expressions that match the names of databases for which you do not want to capture changes.
+The connector captures changes in any database whose name is not in the `database.exclude.list`. +
+
+To match the name of a database, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the database; it does not match substrings that might be present in a database name. +
+If you include this property in the configuration, do not also set the `database.include.list` property.
 
 |[[mysql-property-table-include-list]]<<mysql-property-table-include-list, `+table.include.list+`>>
 |_empty string_
-|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers of tables whose changes you want to capture. The connector does not capture changes in any table not included in `table.include.list`. Each identifier is of the form _databaseName_._tableName_. By default, the connector captures changes in every non-system table in each database whose changes are being captured.
-Do not also specify the `table.exclude.list` connector configuration property.
+|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers of tables whose changes you want to capture.
+The connector does not capture changes in any table that is not included in `table.include.list`.
+Each identifier is of the form _databaseName_._tableName_.
+By default, the connector captures changes in every non-system table in each database whose changes are being captured. +
+
+To match the name of a table, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the table; it does not match substrings that might be present in a table name. +
+If you include this property in the configuration, do not also set the `table.exclude.list` property.
 
 |[[mysql-property-table-exclude-list]]<<mysql-property-table-exclude-list, `+table.exclude.list+`>>
 |_empty string_
-|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers for tables whose changes you do not want to capture. The connector captures changes in any table not included in `table.exclude.list`. Each identifier is of the form _databaseName_._tableName_.
-Do not also specify the `table.include.list` connector configuration property.
+|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers for tables whose changes you do not want to capture.
+The connector captures changes in any table that is not included in `table.exclude.list`.
+Each identifier is of the form _databaseName_._tableName_. +
+
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the table; it does not match substrings that might be present in a table name. +
+If you include this property in the configuration, do not also set the `table.include.list` property.
 
 |[[mysql-property-column-exclude-list]]<<mysql-property-column-exclude-list, `+column.exclude.list+`>>
 |_empty string_
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns to exclude from change event record values. Fully-qualified names for columns are of the form _databaseName_._tableName_._columnName_.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns to exclude from change event record values.
+Fully-qualified names for columns are of the form _databaseName_._tableName_._columnName_. +
+
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; it does not match substrings that might be present in a column name.
+If you include this property in the configuration, do not also set the `column.include.list` property.
 
 |[[mysql-property-column-include-list]]<<mysql-property-column-include-list, `+column.include.list+`>>
 |_empty string_
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns to include in change event record values. Fully-qualified names for columns are of the form _databaseName_._tableName_._columnName_.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns to include in change event record values.
+Fully-qualified names for columns are of the form _databaseName_._tableName_._columnName_. +
+
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; it does not match substrings that might be present in a column name. +
+If you include this property in the configuration, do not set the `column.exclude.list` property.
 
 |[[mysql-property-column-truncate-to-length-chars]]<<mysql-property-column-truncate-to-length-chars, `column.truncate.to._length_.chars`>>
 |_n/a_
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns whose values should be truncated in the change event record values if the field values are longer than the specified number of characters. You can configure multiple properties with different lengths in a single configuration. The length must be a positive integer. Fully-qualified names for columns are of the form _databaseName_._tableName_._columnName_.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns.
+Set this property if you want to truncate the data in a set of columns when it exceeds the number of characters specified by the _length_ in the property name.
+Set `length` to a positive integer value, for example, `column.truncate.to.20.chars`.
+
+The fully-qualified name of a column observes the following format: _databaseName_._tableName_._columnName_.
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
+
+You can specify multiple properties with different lengths in a single configuration.
 
 |[[mysql-property-column-mask-with-length-chars]]<<mysql-property-column-mask-with-length-chars, `column.mask.with._length_.chars`>>
 |_n/a_
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns whose values should be replaced in the change event message values with a field value consisting of the specified number of asterisk (`*`) characters. You can configure multiple properties with different lengths in a single configuration. Each length must be a positive integer or zero. Fully-qualified names for columns are of the form _databaseName_._tableName_._columnName_.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns.
+Set this property if you want the connector to mask the values for a set of columns, for example, if they contain sensitive data.
+Set `_length_` to a positive integer to replace data in the specified columns with the number of asterisk (`*`) characters specified by the _length_ in the property name.
+Set _length_ to `0` (zero) to replace data in the specified columns with an empty string.
+
+The fully-qualified name of a column observes the following format: _databaseName_._tableName_._columnName_.
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
+
+You can specify multiple properties with different lengths in a single configuration.
 
 |[[mysql-property-column-mask-hash]]<<mysql-property-column-mask-hash, `column.mask.hash._hashAlgorithm_.with.salt._salt_`>>;
 [[mysql-property-column-mask-hash-v2]]<<mysql-property-column-mask-hash-v2, `column.mask.hash.v2._hashAlgorithm_.with.salt._salt_`>>
 |_n/a_
 a|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns.
-Fully-qualified names for columns are of the form `_<databaseName>_._<tableName>_._<columnName>_`.
+Fully-qualified names for columns are of the form `_<databaseName>_._<tableName>_._<columnName>_`. +
+To match the name of a column {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
 In the resulting change event record, the values for the specified columns are replaced with pseudonyms. +
 
 A pseudonym consists of the hashed value that results from applying the specified _hashAlgorithm_ and _salt_.
@@ -2544,37 +2669,37 @@ Hashing strategy version 2 should be used to ensure fidelity if the value is bei
 
 |[[mysql-property-column-propagate-source-type]]<<mysql-property-column-propagate-source-type, `+column.propagate.source.type+`>>
 |_n/a_
-a|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns whose original type and length should be added as a parameter to the corresponding field schemas in the emitted change event records. These schema parameters:
+a|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns for which you want the connector to emit extra parameters that represent column metadata.
+When this property is set, the connector adds the following fields to the schema of event records:
 
-`pass:[_]pass:[_]{prodname}.source.column.type`
+* `pass:[_]pass:[_]debezium.source.column.type` +
+* `pass:[_]pass:[_]debezium.source.column.length` +
+* `pass:[_]pass:[_]debezium.source.column.scale` +
 
-`pass:[_]pass:[_]{prodname}.source.column.length`
+These parameters propagate a column's original type name and length (for variable-width types), respectively. +
+Enabling the connector to emit this extra data can assist in properly sizing specific numeric or character-based columns in sink databases.
 
-`pass:[_]pass:[_]{prodname}.source.column.scale`
-
-are used to propagate the original type name and length for variable-width types, respectively. This is useful to properly size corresponding columns in sink databases. Fully-qualified names for columns are of one of these forms:
-
-_databaseName_._tableName_._columnName_
-
-_databaseName_._schemaName_._tableName_._columnName_
+The fully-qualified name of a column observes one of the following formats: _databaseName_._tableName_._columnName_, or _databaseName_._schemaName_._tableName_._columnName_. +
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
 
 |[[mysql-property-datatype-propagate-source-type]]<<mysql-property-datatype-propagate-source-type, `+datatype.propagate.source.type+`>>
 |_n/a_
-a|An optional, comma-separated list of regular expressions that match the database-specific data type name of columns whose original type and length should be added as a parameter to the corresponding field schemas in the emitted change event records. These schema parameters:
+a|An optional, comma-separated list of regular expressions that specify the fully-qualified names of data types that are defined for columns in a database.
+When this property is set, for columns with matching data types, the connector emits event records that include the following extra fields in their schema:
 
-`pass:[_]pass:[_]debezium.source.column.type`
+* `pass:[_]pass:[_]debezium.source.column.type` +
+* `pass:[_]pass:[_]debezium.source.column.length` +
+* `pass:[_]pass:[_]debezium.source.column.scale` +
 
-`pass:[_]pass:[_]debezium.source.column.length`
+These parameters propagate a column's original type name and length (for variable-width types), respectively. +
+Enabling the connector to emit this extra data can assist in properly sizing specific numeric or character-based columns in sink databases.
 
-`pass:[_]pass:[_]debezium.source.column.scale`
+The fully-qualified name of a column observes one of the following formats: _databaseName_._tableName_._typeName_, or _databaseName_._schemaName_._tableName_._typeName_. +
+To match the name of a data type, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the data type; the expression does not match substrings that might be present in a type name.
 
-are used to propagate the original type name and length for variable-width types, respectively. This is useful to properly size corresponding columns in sink databases. Fully-qualified data type names are of one of these forms:
-
-_databaseName_._tableName_._typeName_
-
-_databaseName_._schemaName_._tableName_._typeName_
-
-See xref:{link-mysql-connector}#mysql-data-types[how MySQL connectors map data types] for the list of MySQL-specific data type names.
+For the list of MySQL-specific data type names, see the xref:mysql-data-types[MySQL data type mappings].
 
 |[[mysql-property-time-precision-mode]]<<mysql-property-time-precision-mode, `+time.precision.mode+`>>
 |`adaptive_time_microseconds`
@@ -2673,12 +2798,21 @@ For example, if you set `max.queue.size=1000`, and `max.queue.size.in.bytes=5000
 
 |[[mysql-property-gtid-source-includes]]<<mysql-property-gtid-source-includes, `+gtid.source.includes+`>>
 |No default
-|A comma-separated list of regular expressions that match source UUIDs in the GTID set used to find the binlog position in the MySQL server. Only the GTID ranges that have sources that match one of these include patterns are used.
-Do not also specify a setting for `gtid.source.excludes`.
+|A comma-separated list of regular expressions that match source UUIDs in the GTID set used that the connector uses to find the binlog position on the MySQL server.
+When this property is set, the connector uses only the GTID ranges that have source UUIDs that match one of the specified `include` patterns.
+
+To match the value of a GTID, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire UUID string; it does not match substrings that might be present in the UUID. +
+If you include this property in the configuration, do not also set the `gtid.source.excludes` property.
 
 |[[mysql-property-gtid-source-excludes]]<<mysql-property-gtid-source-excludes, `+gtid.source.excludes+`>>
 |No default
-|A comma-separated list of regular expressions that match source UUIDs in the GTID set used to find the binlog position in the MySQL server. Only the GTID ranges that have sources that do not match any of these exclude patterns are used. Do not also specify a value for `gtid.source.includes`.
+|A comma-separated list of regular expressions that match source UUIDs in the GTID set that the connector uses to find the binlog position on the MySQL server.
+When this property is set, the connector uses only the GTID ranges that have source UUIDs that do not match any of the specified `exclude` patterns.
+
+To match the value of a GTID, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire UUID string; it does not match substrings that might be present in the UUID. +
+If you include this property in the configuration, do not also set the `gtid.source.includes` property.
 
 |[[mysql-property-tombstones-on-delete]]<<mysql-property-tombstones-on-delete, `+tombstones.on.delete+`>>
 |`true`
@@ -2733,11 +2867,11 @@ However, it's best to use the minimum number that are required to specify a uniq
 `hex` represents binary data as a hex-encoded (base16) String.
 
 |[[mysql-property-schema-name-adjustment-mode]]<<mysql-property-schema-name-adjustment-mode,`+schema.name.adjustment.mode+`>>
-|avro
+|none
 |Specifies how schema names should be adjusted for compatibility with the message converter used by the connector. Possible settings:  +
 
-* `avro` replaces the characters that cannot be used in the Avro type name with underscore. +
 * `none` does not apply any adjustment. +
+* `avro` replaces the characters that cannot be used in the Avro type name with underscore. +
 
 |===
 
@@ -2841,8 +2975,11 @@ a|Controls whether and how long the connector holds the global MySQL read lock, 
 | All tables specified in `table.include.list`
 |An optional, comma-separated list of regular expressions that match the fully-qualified names (`_<databaseName>.<tableName>_`) of the tables to include in a snapshot.
 The specified items must be named in the connector's xref:mysql-property-table-include-list[`table.include.list`] property.
-This property takes effect only if the connector's `snapshot.mode` property is set to a value other than `never`. +
-This property does not affect the behavior of incremental snapshots.
+This property takes effect only if the connector's xref:mysql-property-snapshot-mode[`snapshot.mode`] property is set to a value other than `never`. +
+This property does not affect the behavior of incremental snapshots. +
+
+To match the name of a table, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the table; it does not match substrings that might be present in a table name.
 
 |[[mysql-property-snapshot-select-statement-overrides]]<<mysql-property-snapshot-select-statement-overrides, `+snapshot.select.statement.overrides+`>>
 |No default
@@ -2932,8 +3069,10 @@ endif::community[]
 |Indicates whether field names are sanitized to adhere to xref:{link-avro-serialization}#avro-naming[Avro naming requirements].
 
 |[[mysql-property-skipped-operations]]<<mysql-property-skipped-operations, `+skipped.operations+`>>
-|No default
-|Comma-separated list of operation types to skip during streaming. The following values are possible: `c` for inserts/create, `u` for updates, `d` for deletes. By default, no operations are skipped.
+|`t`
+|A comma-separated list of operation types that will be skipped during streaming.
+The operations include: `c` for inserts/create, `u` for updates, `d` for deletes, `t` for truncates, and `none` to not skip any operations.
+By default, truncate operations are skipped.
 
 |[[mysql-property-signal-data-collection]]<<mysql-property-signal-data-collection,`+signal.data.collection+`>>
 |No default value

@@ -2042,23 +2042,50 @@ The connector is also unable to recover its database schema history topic.
 
 |[[db2-property-table-include-list]]<<db2-property-table-include-list, `+table.include.list+`>>
 |No default
-|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers for tables whose changes you want the connector to capture. Any table not included in the include list does not have its changes captured. Each identifier is of the form _schemaName_._tableName_. By default, the connector captures changes in every non-system table. Do not also set the `table.exclude.list` property.
+|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers for tables whose changes you want the connector to capture.
+When this property is set, the connector captures changes only from the specified tables.
+Each identifier is of the form _schemaName_._tableName_. By default, the connector captures changes in every non-system table. +
+
+To match the name of a table, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the table it does not match substrings that might be present in a table name. +
+If you include this property in the configuration, do not also set the `table.exclude.list` property.
 
 |[[db2-property-table-exclude-list]]<<db2-property-table-exclude-list, `+table.exclude.list+`>>
 |No default
-|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers for tables whose changes you do not want the connector to capture. The connector captures changes in each non-system table that is not included in the exclude list. Each identifier is of the form _schemaName_._tableName_. Do not also set the `table.include.list` property.
+|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers for tables whose changes you do not want the connector to capture.
+The connector captures changes in each non-system table that is not included in the exclude list.
+Each identifier is of the form _schemaName_._tableName_. +
+
+To match the name of a table, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the table it does not match substrings that might be present in a table name. +
+If you include this property in the configuration, do not also set the `table.include.list` property.
+
+|[[db2-property-column-include-list]]<<db2-property-column-include-list, `+column.include.list+`>>
+|_empty string_
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns to include in change event record values.
+Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. +
+
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; it does not match substrings that might be present in a column name.
+If you include this property in the configuration, do not also set the `column.exclude.list` property.
 
 |[[db2-property-column-exclude-list]]<<db2-property-column-exclude-list, `+column.exclude.list+`>>
 |_empty string_
 |An optional, comma-separated list of regular expressions that match the fully-qualified names of columns to exclude from change event values.
-Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_.
+Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. +
+
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; it does not match substrings that might be present in a column name.
 Primary key columns are always included in the event's key, even if they are excluded from the value.
+If you include this property in the configuration, do not set the `column.include.list` property.
 
 |[[db2-property-column-mask-hash]]<<db2-property-column-mask-hash, `column.mask.hash._hashAlgorithm_.with.salt._salt_`>>
 |_n/a_
 |An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns.
-Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_.
-In the resulting change event record, the values for the specified columns are replaced with pseudonyms. +
+Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. +
+To match the name of a column {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
+In the resulting change event record, the values for the specified columns are replaced with pseudonyms.
 
 A pseudonym consists of the hashed value that results from applying the specified _hashAlgorithm_ and _salt_.
 Based on the hash function that is used, referential integrity is maintained, while column values are replaced with pseudonyms.
@@ -2099,39 +2126,62 @@ After a source record is deleted, emitting a tombstone event (the default behavi
 
 |[[db2-property-column-truncate-to-length-chars]]<<db2-property-column-truncate-to-length-chars, `column.truncate.to._length_.chars`>>
 |_n/a_
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns. Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. In change event records, values in these columns are truncated if they are longer than the number of characters specified by _length_ in the property name. You can specify multiple properties with different lengths in a single configuration. Length must be a positive integer, for example, `column.truncate.to.20.chars`.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns.
+Set this property if you want to truncate the data in a set of columns when it exceeds the number of characters specified by the _length_ in the property name.
+Set `length` to a positive integer value, for example, `column.truncate.to.20.chars`.
+
+The fully-qualified name of a column observes the following format: _schemaName_._tableName_._columnName_.
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
+
+You can specify multiple properties with different lengths in a single configuration.
 
 |[[db2-property-column-mask-with-length-chars]]<<db2-property-column-mask-with-length-chars, `column.mask.with._length_.chars`>>
 |_n/a_
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns. Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. In change event values, the values in the specified table columns are replaced with _length_ number of asterisk (`*`) characters. You can specify multiple properties with different lengths in a single configuration. Length must be a positive integer or zero. When you specify zero, the connector replaces a value with an empty string.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns.
+Set this property if you want the connector to mask the values for a set of columns, for example, if they contain sensitive data.
+Set `_length_` to a positive integer to replace data in the specified columns with the number of asterisk (`*`) characters specified by the _length_ in the property name.
+Set _length_ to `0` (zero) to replace data in the specified columns with an empty string.
+
+The fully-qualified name of a column observes the following format: _schemaName_._tableName_._columnName_. +
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
+
+You can specify multiple properties with different lengths in a single configuration.
 
 |[[db2-property-column-propagate-source-type]]<<db2-property-column-propagate-source-type, `+column.propagate.source.type+`>>
 |_n/a_
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns.
-Fully-qualified names for columns are of the form _databaseName_._tableName_._columnName_, or _databaseName_._schemaName_._tableName_._columnName_. +
- +
-For each specified column, the connector adds the column's original type and original length as parameters to the corresponding field schemas in the emitted change records.
-Add the following schema parameters to propagate the original type name and the original length for variable-width types: +
- +
-`pass:[_]pass:[_]debezium.source.column.type` +
-`pass:[_]pass:[_]debezium.source.column.length` +
-`pass:[_]pass:[_]debezium.source.column.scale` +
- +
-This property is useful for properly sizing corresponding columns in sink databases.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns for which you want the connector to emit extra parameters that represent column metadata.
+When this property is set, the connector adds the following fields to the schema of event records:
+
+* `pass:[_]pass:[_]debezium.source.column.type` +
+* `pass:[_]pass:[_]debezium.source.column.length` +
+* `pass:[_]pass:[_]debezium.source.column.scale` +
+
+These parameters propagate a column's original type name and length (for variable-width types), respectively. +
+Enabling the connector to emit this extra data can assist in properly sizing specific numeric or character-based columns in sink databases.
+
+The fully-qualified name of a column observes one of the following formats: _databaseName_._tableName_._columnName_, or _databaseName_._schemaName_._tableName_._columnName_. +
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
 
 |[[db2-property-datatype-propagate-source-type]]<<db2-property-datatype-propagate-source-type, `+datatype.propagate.source.type+`>>
 |_n/a_
-|An optional, comma-separated list of regular expressions that match the database-specific data type name for some columns. Fully-qualified data type names are of the form _databaseName_._tableName_._typeName_, or _databaseName_._schemaName_._tableName_._typeName_. +
- +
-For these data types, the connector adds parameters to the corresponding field schemas in emitted change records. The added parameters specify the original type and length of the column: +
- +
-`pass:[_]pass:[_]debezium.source.column.type` +
-`pass:[_]pass:[_]debezium.source.column.length` +
-`pass:[_]pass:[_]debezium.source.column.scale` +
- +
-These parameters propagate a column's original type name and length, for variable-width types, respectively. This property is useful for properly sizing corresponding columns in sink databases. +
- +
-See xref:{link-db2-connector}#db2-data-types[Db2 data types] for the list of Db2-specific data type names.
+|An optional, comma-separated list of regular expressions that specify the fully-qualified names of data types that are defined for columns in a database.
+When this property is set, for columns with matching data types, the connector emits event records that include the following extra fields in their schema:
+
+* `pass:[_]pass:[_]debezium.source.column.type` +
+* `pass:[_]pass:[_]debezium.source.column.length` +
+* `pass:[_]pass:[_]debezium.source.column.scale` +
+
+These parameters propagate a column's original type name and length (for variable-width types), respectively. +
+Enabling the connector to emit this extra data can assist in properly sizing specific numeric or character-based columns in sink databases.
+
+The fully-qualified name of a column observes one of the following formats: _databaseName_._tableName_._typeName_, or _databaseName_._schemaName_._tableName_._typeName_. +
+To match the name of a data type, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the data type; the expression does not match substrings that might be present in a type name.
+
+For the list of Db2-specific data type names, see the xref:db2-data-types[Db2 data type mappings] .
 
 |[[db2-property-message-key-columns]]<<db2-property-message-key-columns, `+message.key.columns+`>>
 |_empty string_
@@ -2161,11 +2211,11 @@ In the preceding example, the columns `pk1` and `pk2` are specified as the messa
 For `purchaseorders` tables in any schema, the columns `pk3` and `pk4` serve as the message key.
 
 |[[db2-property-schema-name-adjustment-mode]]<<db2-property-schema-name-adjustment-mode,`+schema.name.adjustment.mode+`>>
-|avro
+|none
 |Specifies how schema names should be adjusted for compatibility with the message converter used by the connector. Possible settings:  +
 
-* `avro` replaces the characters that cannot be used in the Avro type name with underscore. +
 * `none` does not apply any adjustment. +
+* `avro` replaces the characters that cannot be used in the Avro type name with underscore. +
 
 |===
 
@@ -2275,8 +2325,11 @@ Heartbeat messages are useful when there are many updates in a database that is 
 | All tables specified in `table.include.list`
 |An optional, comma-separated list of regular expressions that match the fully-qualified names (`_<schemaName>.<tableName>_`) of the tables to include in a snapshot.
 The specified items must be named in the connector's xref:db2-property-table-include-list[`table.include.list`] property.
-This property takes effect only if the connector's `snapshot.mode` property is set to a value other than `never`. +
-This property does not affect the behavior of incremental snapshots.
+This property takes effect only if the connector's xref:db2-property-snapshot-mode[`snapshot.mode`] property is set to a value other than `never`. +
+This property does not affect the behavior of incremental snapshots. +
+
+To match the name of a table, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the table; it does not match substrings that might be present in a table name.
 
 |[[db2-property-snapshot-fetch-size]]<<db2-property-snapshot-fetch-size, `+snapshot.fetch.size+`>>
 |`2000`
@@ -2330,10 +2383,10 @@ In the resulting snapshot, the connector includes only the records for which `de
 |Determines whether the connector generates events with transaction boundaries and enriches change event envelopes with transaction metadata. Specify `true` if you want the connector to do this. See xref:{link-db2-connector}#db2-transaction-metadata[Transaction metadata] for details.
 
 |[[db2-property-skipped-operations]]<<db2-property-skipped-operations, `+skipped.operations+`>>
-|No default
-| comma-separated list of operation types that will be skipped during streaming.
-The operations include: `c` for inserts/create, `u` for updates, and `d` for deletes.
-By default, no operations are skipped.
+|`t`
+|A comma-separated list of operation types that will be skipped during streaming.
+The operations include: `c` for inserts/create, `u` for updates, `d` for deletes, `t` for truncates, and `none` to not skip any operations.
+By default, truncate operations are skipped (not emitted by this connector).
 
 |[[db2-property-signal-data-collection]]<<db2-property-signal-data-collection, `+signal.data.collection+`>>
 |No default

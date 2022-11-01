@@ -147,6 +147,14 @@ jobs:
         with:
           files: |
             debezium-core/**
+            debezium-schema-generator/**
+            debezium-connect-rest-extension/**
+            debezium-connector-mongodb/**
+            debezium-connector-mysql/**                        
+            debezium-connector-postgres/**
+            debezium-connector-sqlserver/**
+            debezium-connector-oracle/**
+            debezium-storage/**
             support/checkstyle/**
             debezium-parent/pom.xml
             debezium-bom/pom.xml
@@ -272,7 +280,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        version-mongo-server: ["4.0", "4.4", "5.0"]
+        version-mongo-server: ["4.0", "4.4", "5.0", "6.0"]
     steps:
       - name: Checkout Action
         uses: actions/checkout@v2
@@ -341,7 +349,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        postgres-plugin: ["assembly", "assembly,postgres-14,pgoutput-decoder"]
+        postgres-plugin: ["assembly", "assembly,postgres-15,pgoutput-decoder"]
     steps:
       - name: Checkout Action
         uses: actions/checkout@v2

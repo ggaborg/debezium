@@ -21,7 +21,6 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.bson.BsonDocument;
 import org.bson.BsonString;
 import org.bson.BsonTimestamp;
-import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,12 +28,12 @@ import org.slf4j.LoggerFactory;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.ChangeStreamIterable;
 import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.FullDocument;
+import com.mongodb.client.model.changestream.FullDocumentBeforeChange;
 
 import io.debezium.connector.mongodb.ConnectionContext.MongoPrimary;
 import io.debezium.data.Envelope.Operation;
@@ -214,6 +213,9 @@ public class MongoDbStreamingChangeEventSource implements StreamingChangeEventSo
         if (taskContext.getCaptureMode().isFullUpdate()) {
             rsChangeStream.fullDocument(FullDocument.UPDATE_LOOKUP);
         }
+        if (taskContext.getCaptureMode().isIncludePreImage()) {
+            rsChangeStream.fullDocumentBeforeChange(FullDocumentBeforeChange.WHEN_AVAILABLE);
+        }
         if (rsOffsetContext.lastResumeToken() != null) {
             LOGGER.info("Resuming streaming from token '{}'", rsOffsetContext.lastResumeToken());
 
@@ -221,7 +223,7 @@ public class MongoDbStreamingChangeEventSource implements StreamingChangeEventSo
             doc.put("_data", new BsonString(rsOffsetContext.lastResumeToken()));
             rsChangeStream.resumeAfter(doc);
         }
-        else {
+        else if (oplogStart.getTime() > 0) {
             LOGGER.info("Resume token not available, starting streaming from time '{}'", oplogStart);
             rsChangeStream.startAtOperationTime(oplogStart);
         }
@@ -301,9 +303,7 @@ public class MongoDbStreamingChangeEventSource implements StreamingChangeEventSo
             if (primaryClient != null) {
                 try {
                     primaryClient.execute("get oplog position", primary -> {
-                        MongoCollection<BsonDocument> oplog = primary.getDatabase("local").getCollection("oplog.rs", BsonDocument.class);
-                        BsonDocument last = oplog.find().sort(new Document("$natural", -1)).limit(1).first(); // may be null
-                        positions.put(replicaSet, last);
+                        positions.put(replicaSet, MongoUtil.getOplogEntry(primary, -1, LOGGER));
                     });
                 }
                 finally {

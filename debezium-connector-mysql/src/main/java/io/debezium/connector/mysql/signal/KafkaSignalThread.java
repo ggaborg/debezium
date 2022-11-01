@@ -36,6 +36,7 @@ import io.debezium.pipeline.signal.ResumeIncrementalSnapshot;
 import io.debezium.pipeline.signal.StopSnapshot;
 import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Collect;
+import io.debezium.util.Loggings;
 import io.debezium.util.Threads;
 
 /**
@@ -135,7 +136,7 @@ public class KafkaSignalThread<T extends DataCollectionId> {
                     return;
                 }
                 catch (final Exception e) {
-                    LOGGER.error("Skipped signal due to an error '{}'", record, e);
+                    Loggings.logErrorAndTraceRecord(LOGGER, record, "Skipped signal due to an error", e);
                 }
             }
         }

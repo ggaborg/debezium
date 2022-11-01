@@ -130,6 +130,7 @@ miphik,Andrey Savchuk
 narzdavid,Narz David
 LarsWerkman,Lars Werkman
 chadthamn,Chad Marmon
+xinbinhuang,Xinbin Huang
 xqshe,Xinquan She
 wangminchao,Wang Min Chao
 markallanson,Mark Allanson
@@ -160,3 +161,8 @@ gmouss,Moustapha Mahfoud
 avis408,Avinash Vishwakarma
 nirolevy,Niro Levy
 nirlevy,Nir Levy
+rajdangwal,Rajendra Dangwal
+Sage-Pierce,Sage Pierce
+joschi,Jochen Schalanda
+janjwerner-confluent,Jan Werner
+enzo-cappa,Enzo Cappa

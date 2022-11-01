@@ -494,16 +494,17 @@ public abstract class RelationalDatabaseConnectorConfig extends CommonConnectorC
 
     private final RelationalTableFilters tableFilters;
     private final ColumnNameFilter columnFilter;
+    private final boolean columnsFiltered;
     private final TemporalPrecisionMode temporalPrecisionMode;
     private final KeyMapper keyMapper;
     private final TableIdToStringMapper tableIdMapper;
     private final JdbcConfiguration jdbcConfig;
     private final String heartbeatActionQuery;
 
-    protected RelationalDatabaseConnectorConfig(Configuration config, String logicalName, TableFilter systemTablesFilter,
+    protected RelationalDatabaseConnectorConfig(Configuration config, TableFilter systemTablesFilter,
                                                 TableIdToStringMapper tableIdMapper, int defaultSnapshotFetchSize,
                                                 ColumnFilterMode columnFilterMode, boolean useCatalogBeforeSchema) {
-        super(config, logicalName, defaultSnapshotFetchSize);
+        super(config, defaultSnapshotFetchSize);
 
         this.temporalPrecisionMode = TemporalPrecisionMode.parse(config.getString(TIME_PRECISION_MODE));
         this.keyMapper = CustomKeyMapper.getInstance(config.getString(MSG_KEY_COLUMNS), tableIdMapper);
@@ -522,6 +523,8 @@ public abstract class RelationalDatabaseConnectorConfig extends CommonConnectorC
 
         String columnExcludeList = config.getString(COLUMN_EXCLUDE_LIST);
         String columnIncludeList = config.getString(COLUMN_INCLUDE_LIST);
+
+        columnsFiltered = !(Strings.isNullOrEmpty(columnExcludeList) && Strings.isNullOrEmpty(columnIncludeList));
 
         if (columnIncludeList != null) {
             this.columnFilter = ColumnNameFilterFactory.createIncludeListFilter(columnIncludeList, columnFilterMode);
@@ -598,6 +601,10 @@ public abstract class RelationalDatabaseConnectorConfig extends CommonConnectorC
 
     public ColumnNameFilter getColumnFilter() {
         return columnFilter;
+    }
+
+    public boolean isColumnsFiltered() {
+        return columnsFiltered;
     }
 
     public Boolean isFullColummnScanRequired() {

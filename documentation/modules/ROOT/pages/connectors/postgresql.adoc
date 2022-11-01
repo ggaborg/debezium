@@ -409,7 +409,7 @@ Metadata for transactions that occur before you deploy the connector is not avai
 For every transaction `BEGIN` and `END`, {prodname} generates an event that contains the following fields:
 
 `status`:: `BEGIN` or `END`.
-`id`:: String representation of the unique transaction identifier.
+`id`:: String representation of the unique transaction identifier composed of Postgres transaction ID itself and LSN of given operation separated by colon, i.e. the format is `txID:LSN`.
 `ts_ms`:: The time of a transaction boundary event (`BEGIN` or `END` event) at the data source.
 If the data source does not provide {prodname} with the event time, then the field instead represents the time at which {prodname} processes the event.
 `event_count` (for `END` events):: Total number of events emmitted by the transaction.
@@ -421,7 +421,7 @@ If the data source does not provide {prodname} with the event time, then the fie
 ----
 {
   "status": "BEGIN",
-  "id": "571",
+  "id": "571:53195829",
   "ts_ms": 1486500577125,
   "event_count": null,
   "data_collections": null
@@ -429,7 +429,7 @@ If the data source does not provide {prodname} with the event time, then the fie
 
 {
   "status": "END",
-  "id": "571",
+  "id": "571:53195832",
   "ts_ms": 1486500577691,
   "event_count": 2,
   "data_collections": [
@@ -473,7 +473,7 @@ Following is an example of a message:
   "op": "c",
   "ts_ms": "1580390884335",
   "transaction": {
-    "id": "571",
+    "id": "571:53195832",
     "total_order": "1",
     "data_collection_order": "1"
   }
@@ -2664,27 +2664,61 @@ If you change the name value, after a restart, instead of continuing to emit eve
 
 |[[postgresql-property-schema-include-list]]<<postgresql-property-schema-include-list, `+schema.include.list+`>>
 |No default
-|An optional, comma-separated list of regular expressions that match names of schemas for which you *want* to capture changes. Any schema name not included in `schema.include.list` is excluded from having its changes captured. By default, all non-system schemas have their changes captured. Do not also set the `schema.exclude.list` property.
+|An optional, comma-separated list of regular expressions that match names of schemas for which you *want* to capture changes.
+Any schema name not included in `schema.include.list` is excluded from having its changes captured.
+By default, all non-system schemas have their changes captured. +
+
+To match the name of a schema, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire identifier for the schema; it does not match substrings that might be present in a schema name. +
+If you include this property in the configuration, do not also set the `schema.exclude.list` property.
 
 |[[postgresql-property-schema-exclude-list]]<<postgresql-property-schema-exclude-list, `+schema.exclude.list+`>>
 |No default
-|An optional, comma-separated list of regular expressions that match names of schemas for which you *do not* want to capture changes. Any schema whose name is not included in `schema.exclude.list` has its changes captured, with the exception of system schemas. Do not also set the `schema.include.list` property.
+|An optional, comma-separated list of regular expressions that match names of schemas for which you *do not* want to capture changes.
+Any schema whose name is not included in `schema.exclude.list` has its changes captured, with the exception of system schemas. +
+
+To match the name of a schema, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire identifier for the schema; it does not match substrings that might be present in a schema name. +
+If you include this property in the configuration, do not set the `schema.include.list` property.
 
 |[[postgresql-property-table-include-list]]<<postgresql-property-table-include-list, `+table.include.list+`>>
 |No default
-|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers for tables whose changes you want to capture. Any table not included in `table.include.list` does not have its changes captured. Each identifier is of the form _schemaName_._tableName_. By default, the connector captures changes in every non-system table in each schema whose changes are being captured. Do not also set the `table.exclude.list` property.
+|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers for tables whose changes you want to capture.
+When this property is set, the connector captures changes only from the specified tables.
+Each identifier is of the form _schemaName_._tableName_.
+By default, the connector captures changes in every non-system table in each schema whose changes are being captured. +
+
+To match the name of a table, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire identifier for the table; it does not match substrings that might be present in a table name. +
+If you include this property in the configuration, do not also set the `table.exclude.list` property.
 
 |[[postgresql-property-table-exclude-list]]<<postgresql-property-table-exclude-list, `+table.exclude.list+`>>
 |No default
-|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers for tables whose changes you *do not* want to capture. Any table not included in `table.exclude.list` has it changes captured. Each identifier is of the form _schemaName_._tableName_. Do not also set the `table.include.list` property.
+|An optional, comma-separated list of regular expressions that match fully-qualified table identifiers for tables whose changes you do not want to capture.
+Each identifier is of the form _schemaName_._tableName_.
+When this property is set, the connector captures changes from every table that you do not specify. +
+
+To match the name of a table, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire identifier for the table; it does not match substrings that might be present in a table name. +
+If you include this property in the configuration, do not set the `table.include.list` property.
 
 |[[postgresql-property-column-include-list]]<<postgresql-property-column-include-list, `+column.include.list+`>>
 |No default
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns that should be included in change event record values. Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. Do not also set the `column.exclude.list` property.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns that should be included in change event record values.
+Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. +
+
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the expression is used to match the entire name string of the column; it does not match substrings that might be present in a column name. +
+If you include this property in the configuration, do not also set the `column.exclude.list` property.
 
 |[[postgresql-property-column-exclude-list]]<<postgresql-property-column-exclude-list, `+column.exclude.list+`>>
 |No default
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns that should be excluded from change event record values. Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. Do not also set the `column.include.list` property.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns that should be excluded from change event record values.
+Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. +
+
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the expression is used to match the entire name string of the column; it does not match substrings that might be present in a column name. +
+If you include this property in the configuration, do not set the `column.include.list` property.
 
 |[[postgresql-property-time-precision-mode]]<<postgresql-property-time-precision-mode, `+time.precision.mode+`>>
 |`adaptive`
@@ -2766,17 +2800,36 @@ After a source record is deleted, emitting a tombstone event (the default behavi
 
 |[[postgresql-property-column-truncate-to-length-chars]]<<postgresql-property-column-truncate-to-length-chars, `column.truncate.to._length_.chars`>>
 |_n/a_
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns. Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. In change event records, values in these columns are truncated if they are longer than the number of characters specified by _length_ in the property name. You can specify multiple properties with different lengths in a single configuration. Length must be a positive integer, for example, `column.truncate.to.20.chars`.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns.
+Set this property if you want to truncate the data in a set of columns when it exceeds the number of characters specified by the _length_ in the property name.
+Set `length` to a positive integer value, for example, `column.truncate.to.20.chars`.
+
+The fully-qualified name of a column observes the following format: `_<schemaName>_._<tableName>_._<columnName>_`.
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
+
+You can specify multiple properties with different lengths in a single configuration.
 
 |[[postgresql-property-column-mask-with-length-chars]]<<postgresql-property-column-mask-with-length-chars, `column.mask.with._length_.chars`>>
 |_n/a_
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns. Fully-qualified names for columns are of the form _schemaName_._tableName_._columnName_. In change event values, the values in the specified table columns are replaced with _length_ number of asterisk (`*`) characters. You can specify multiple properties with different lengths in a single configuration. Length must be a positive integer or zero. When you specify zero, the connector replaces a value with an empty string.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns.
+Set this property if you want the connector to mask the values for a set of columns, for example, if they contain sensitive data.
+Set `_length_` to a positive integer to replace data in the specified columns with the number of asterisk (`*`) characters specified by the _length_ in the property name.
+Set _length_ to `0` (zero) to replace data in the specified columns with an empty string.
+
+The fully-qualified name of a column observes the following format: _schemaName_._tableName_._columnName_.
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
+
+You can specify multiple properties with different lengths in a single configuration.
 
 |[[postgresql-property-column-mask-hash]]<<postgresql-property-column-mask-hash, `column.mask.hash._hashAlgorithm_.with.salt._salt_`>>;
 [[postgresql-property-column-mask-hash-v2]]<<postgresql-property-column-mask-hash-v2, `column.mask.hash.v2._hashAlgorithm_.with.salt._salt_`>>
 |_n/a_
 |An optional, comma-separated list of regular expressions that match the fully-qualified names of character-based columns.
-Fully-qualified names for columns are of the form _<schemaName>_._<tableName>_._<columnName>_.
+Fully-qualified names for columns are of the form _<schemaName>_._<tableName>_._<columnName>_. +
+To match the name of a column {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
 In the resulting change event record, the values for the specified columns are replaced with pseudonyms. +
 
 A pseudonym consists of the hashed value that results from applying the specified _hashAlgorithm_ and _salt_.
@@ -2798,25 +2851,37 @@ Hashing strategy version 2 should be used to ensure fidelity if the value is bei
 
 |[[postgresql-property-column-propagate-source-type]]<<postgresql-property-column-propagate-source-type, `+column.propagate.source.type+`>>
 |_n/a_
-|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns. Fully-qualified names for columns are of the form _databaseName_._tableName_._columnName_, or _databaseName_._schemaName_._tableName_._columnName_. +
- +
-For each specified column, the connector adds the column's original type and original length as parameters to the corresponding field schemas in the emitted change records. The following added schema parameters propagate the original type name and also the original length for variable-width types: +
- +
-`pass:[_]pass:[_]debezium.source.column.type` + `pass:[_]pass:[_]debezium.source.column.length` + `pass:[_]pass:[_]debezium.source.column.scale` +
- +
-This property is useful for properly sizing corresponding columns in sink databases.
+|An optional, comma-separated list of regular expressions that match the fully-qualified names of columns for which you want the connector to emit extra parameters that represent column metadata.
+When this property is set, the connector adds the following fields to the schema of event records:
+
+* `pass:[_]pass:[_]debezium.source.column.type` +
+* `pass:[_]pass:[_]debezium.source.column.length` +
+* `pass:[_]pass:[_]debezium.source.column.scale` +
+
+These parameters propagate a column's original type name and length (for variable-width types), respectively. +
+Enabling the connector to emit this extra data can assist in properly sizing specific numeric or character-based columns in sink databases.
+
+The fully-qualified name of a column observes one of the following formats: _databaseName_._tableName_._columnName_, or _databaseName_._schemaName_._tableName_._columnName_. +
+To match the name of a column, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the column; the expression does not match substrings that might be present in a column name.
 
 |[[postgresql-property-datatype-propagate-source-type]]<<postgresql-property-datatype-propagate-source-type, `+datatype.propagate.source.type+`>>
 |_n/a_
-|An optional, comma-separated list of regular expressions that match the database-specific data type name for some columns. Fully-qualified data type names are of the form _databaseName_._tableName_._typeName_, or _databaseName_._schemaName_._tableName_._typeName_. +
- +
-For these data types, the connector adds parameters to the corresponding field schemas in emitted change records. The added parameters specify the original type and length of the column: +
- +
-`pass:[_]pass:[_]debezium.source.column.type` + `pass:[_]pass:[_]debezium.source.column.length` + `pass:[_]pass:[_]debezium.source.column.scale` +
- +
-These parameters propagate a column's original type name and length, for variable-width types, respectively. This property is useful for properly sizing corresponding columns in sink databases. +
- +
-See the xref:{link-postgresql-connector}#postgresql-data-types[list of PostgreSQL-specific data type names].
+|An optional, comma-separated list of regular expressions that specify the fully-qualified names of data types that are defined for columns in a database.
+When this property is set, for columns with matching data types, the connector emits event records that include the following extra fields in their schema:
+
+* `pass:[_]pass:[_]debezium.source.column.type` +
+* `pass:[_]pass:[_]debezium.source.column.length` +
+* `pass:[_]pass:[_]debezium.source.column.scale` +
+
+These parameters propagate a column's original type name and length (for variable-width types), respectively. +
+Enabling the connector to emit this extra data can assist in properly sizing specific numeric or character-based columns in sink databases.
+
+The fully-qualified name of a column observes one of the following formats: _databaseName_._tableName_._typeName_, or _databaseName_._schemaName_._tableName_._typeName_. +
+To match the name of a data type, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the data type; the expression does not match substrings that might be present in a type name.
+
+For the list of PostgreSQL-specific data type names, see the xref:postgresql-data-types[PostgreSQL data type mappings].
 
 |[[postgresql-property-message-key-columns]]<<postgresql-property-message-key-columns, `+message.key.columns+`>>
 |_empty string_
@@ -2850,13 +2915,24 @@ There is no limit to the number of columns that you use to create custom message
 However, it's best to use the minimum number that are required to specify a unique key.
 |[[postgresql-publication-autocreate-mode]]<<postgresql-publication-autocreate-mode, `+publication.autocreate.mode+`>>
 |_all_tables_
-|Applies only when streaming changes by using link:https://www.postgresql.org/docs/current/sql-createpublication.html[the `pgoutput` plug-in]. The setting determines how creation of a link:https://www.postgresql.org/docs/current/logical-replication-publication.html[publication] should work. Possible settings are: +
+|Applies only when streaming changes by using link:https://www.postgresql.org/docs/current/sql-createpublication.html[the `pgoutput` plug-in].
+The setting determines how creation of a link:https://www.postgresql.org/docs/current/logical-replication-publication.html[publication] should work.
+Specify one of the following values: +
  +
-`all_tables` - If a publication exists, the connector uses it. If a publication does not exist, the connector creates a publication for all tables in the database for which the connector is capturing changes. This requires that the database user that has permission to perform replications also has permission to create a publication. This is granted with `CREATE PUBLICATION <publication_name> FOR ALL TABLES;`. +
+`all_tables` - If a publication exists, the connector uses it.
+If a publication does not exist, the connector creates a publication for all tables in the database for which the connector is capturing changes.
+For the connector to create a publication it must access the database through a database user account that has permission to create publications and perform replications.
+You grant the required permission by using the following SQL command `CREATE PUBLICATION <publication_name> FOR ALL TABLES;`. +
  +
-`disabled` - The connector does not attempt to create a publication. A database administrator or the user configured to perform replications must have created the publication before running the connector. If the connector cannot find the publication, the connector throws an exception and stops. +
+`disabled` - The connector does not attempt to create a publication.
+A database administrator or the user configured to perform replications must have created the publication before running the connector.
+If the connector cannot find the publication, the connector throws an exception and stops. +
  +
-`filtered` - If a publication exists, the connector uses it. If no publication exists, the connector creates a new publication for tables that match the current filter configuration as specified by the `database.exclude.list`, `schema.include.list`, `schema.exclude.list`, and `table.include.list` connector configuration properties. For example: `CREATE PUBLICATION <publication_name> FOR TABLE <tbl1, tbl2, tbl3>`. If the publication exists, the connector upadates the publication for tables that match the current filter configuration. For example: `ALTER PUBLICATION <publication_name> SET TABLE <tbl1, tbl2, tbl3>`.
+`filtered` - If a publication exists, the connector uses it.
+If no publication exists, the connector creates a new publication for tables that match the current filter configuration as specified by the `schema.include.list`, `schema.exclude.list`, and `table.include.list`, and `table.exclude.list` connector configuration properties.
+For example: `CREATE PUBLICATION <publication_name> FOR TABLE <tbl1, tbl2, tbl3>`.
+If the publication exists, the connector updates the publication for tables that match the current filter configuration.
+For example: `ALTER PUBLICATION <publication_name> SET TABLE <tbl1, tbl2, tbl3>`.
 
 |[[postgresql-property-binary-handling-mode]]<<postgresql-property-binary-handling-mode, `+binary.handling.mode+`>>
 |bytes
@@ -2871,11 +2947,11 @@ However, it's best to use the minimum number that are required to specify a uniq
 `hex` represents binary data as hex-encoded (base16) strings.
 
 |[[postgresql-property-schema-name-adjustment-mode]]<<postgresql-property-schema-name-adjustment-mode,`+schema.name.adjustment.mode+`>>
-|avro
+|none
 |Specifies how schema names should be adjusted for compatibility with the message converter used by the connector. Possible settings:  +
 
-* `avro` replaces the characters that cannot be used in the Avro type name with underscore. +
 * `none` does not apply any adjustment. +
+* `avro` replaces the characters that cannot be used in the Avro type name with underscore. +
 
 |[[postgresql-property-money-fraction-digits]]<<postgresql-property-money-fraction-digits, `+money.fraction.digits+`>>
 |`2`
@@ -2884,13 +2960,29 @@ Applicable only when xref:postgresql-property-decimal-handling-mode[`decimal.han
 
 |[[postgresql-property-logical-decoding-message-prefix-include-list]]<<postgresql-property-logical-decoding-message-prefix-include-list, `+message.prefix.include.list+`>>
 |No default
-|An optional, comma-separated list of regular expressions that match names of logical decoding message prefixes for which you *want* to capture. Any logical decoding message with a prefix not included in `message.prefix.include.list` is excluded By default, all logical decoding messages are captured. Do not also set the xref:postgresql-property-logical-decoding-message-prefix-exclude-list[`message.prefix.exclude.list`] property.
+|An optional, comma-separated list of regular expressions that match the names of the logical decoding message prefixes that you want the connector to capture.
+By default, the connector captures all logical decoding messages.
+When this property is set, the connector captures only logical decoding message with the prefixes specified by the property.
+All other logical decoding messages are excluded.
+
+To match the name of a message prefix, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire message prefix string; the expression does not match substrings that might be present in a prefix.
+
+If you include this property in the configuration, do not also set the xref:postgresql-property-logical-decoding-message-prefix-exclude-list[`message.prefix.exclude.list`] property.
 
 For information about the structure of _message_ events and about their ordering semantics, see xref:postgresql-message-events[].
 
 |[[postgresql-property-logical-decoding-message-prefix-exclude-list]]<<postgresql-property-logical-decoding-message-prefix-exclude-list, `+message.prefix.exclude.list+`>>
 |No default
-|An optional, comma-separated list of regular expressions that match names of logical decoding message prefixes for which you *do not* to capture. Any logical decoding message with a prefix that is not included in `message.prefix.exclude.list` is included. Do not also set the xref:postgresql-property-logical-decoding-message-prefix-include-list[`message.prefix.include.list`] property. To exclude all logical decoding messages pass `.*` into this config.
+|An optional, comma-separated list of regular expressions that match the names of the logical decoding message prefixes that you do not want the connector to capture.
+When this property is set, the connector does not capture logical decoding messages that use the specified prefixes.
+All other messages are captured. +
+To exclude all logical decoding messages, set the value of this property to `.*`.
+
+To match the name of a message prefix, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire message prefix string; the expression does not match substrings that might be present in a prefix.
+
+If you include this property in the configuration, do not also set xref:postgresql-property-logical-decoding-message-prefix-include-list[`message.prefix.include.list`] property. +
 
 For information about the structure of _message_ events and about their ordering semantics, see xref:postgresql-message-events[].
 
@@ -2960,9 +3052,11 @@ endif::community[]
 | All tables specified in `table.include.list`
 |An optional, comma-separated list of regular expressions that match the fully-qualified names (`_<schemaName>.<tableName>_`) of the tables to include in a snapshot.
 The specified items must be named in the connector's xref:{context}-property-table-include-list[`table.include.list`] property.
-This property takes effect only if the connector's `snapshot.mode` property is set to a value other than `never`. +
+This property takes effect only if the connector's xref:postgresql-property-snapshot-mode[`snapshot.mode`] property is set to a value other than `never`. +
+This property does not affect the behavior of incremental snapshots. +
 
-This property does not affect the behavior of incremental snapshots.
+To match the name of a table, {prodname} applies the regular expression that you specify as an _anchored_ regular expression.
+That is, the specified expression is matched against the entire name string of the table; it does not match substrings that might be present in a table name.
 
 |[[postgresql-property-snapshot-lock-timeout-ms]]<<postgresql-property-snapshot-lock-timeout-ms, `+snapshot.lock.timeout.ms+`>>
 |`10000`

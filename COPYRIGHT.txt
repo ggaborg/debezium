@@ -9,6 +9,7 @@ Adrian Kreuziger
 Ahmed Eljami
 Aidas
 Akshath Patkar
+Alberto Martino
 Aleksejs Sibanovs
 Alex Mansell
 Alex Soto
@@ -121,6 +122,7 @@ Elan Hasson
 Eliran Agranovich
 Emmanuel Brard
 Emrul Islam
+Enzo Cappa
 Eric Slep
 Eric Weaver
 Eric S. Kreiseir
@@ -157,6 +159,7 @@ Grzegorz Kołakowski
 Jacob Gminder
 Jan Doms
 Jan Hendrik Dolling
+Jan Werner
 Jannik Steinmann
 Jason Schweier
 Jiabao Sun
@@ -202,6 +205,7 @@ Jessica Laughlin
 jinguangyang
 Jiri Novotny
 Jiri Pechanec
+Jochen Schalanda
 Johan Rhedin
 Johan Venant
 John Graf
@@ -293,6 +297,7 @@ Nenad Stojanovikj
 Nick Murray
 Niels Pardon
 Nikhil Benesch
+Nils Hartmann
 Nir Levy
 Nishant Singh
 Nitin Agarwal
@@ -302,6 +307,7 @@ Oliver Weiler
 Olivier Jacquemart
 Olivier Lemasle
 Omar Al-Safi
+Ondrej Babec
 Oren Elias
 Ori Popowski
 Orr Ganani
@@ -327,6 +333,7 @@ pushpavanthar
 Qishang Zhong
 Raf Liwoch
 Raghava Ponnam
+Rajendra Dangwal
 Ram Satish
 Ramesh Reddy
 Randall Hauch
@@ -339,6 +346,7 @@ Roman Kuchar
 Rotem Adhoh
 Sagar Rao
 Sahan Dilshan
+Sahap Asci
 René Kerner
 Rich O'Connell
 Richard Kolkovich
@@ -347,6 +355,7 @@ Robert Roldan
 Ruslan Gibaiev
 Russell Ballard
 Ruud H.G. van Tol
+Sage Pierce
 Sairam Polavarapu
 Sanjay Kr Singh
 Sanne Grinovero
@@ -418,6 +427,7 @@ Willie Zhu
 Wout Scheepers
 Xiao Fu
 Xiaopu Zhu
+Xinbin Huang
 Xinquan She
 Xuan Shen
 Yang Wu

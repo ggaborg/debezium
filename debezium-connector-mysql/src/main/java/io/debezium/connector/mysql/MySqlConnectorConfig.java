@@ -17,7 +17,6 @@ import org.apache.kafka.common.config.ConfigDef.Width;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
 import io.debezium.config.EnumeratedValue;
@@ -764,7 +763,7 @@ public class MySqlConnectorConfig extends HistorizedRelationalDatabaseConnectorC
             .withImportance(Importance.MEDIUM)
             .withDescription("Whether the connector should include the original SQL query that generated the change event. "
                     + "Note: This option requires MySQL be configured with the binlog_rows_query_log_events option set to ON. Query will not be present for events generated from snapshot. "
-                    + "WARNING: Enabling this option may expose tables or fields explicitly blacklisted or masked by including the original SQL statement in the change event. "
+                    + "WARNING: Enabling this option may expose tables or fields explicitly excluded or masked by including the original SQL statement in the change event. "
                     + "For this reason the default value is 'false'.")
             .withDefault(false);
 
@@ -956,14 +955,12 @@ public class MySqlConnectorConfig extends HistorizedRelationalDatabaseConnectorC
     private final Duration connectionTimeout;
     private final Predicate<String> gtidSourceFilter;
     private final EventProcessingFailureHandlingMode inconsistentSchemaFailureHandlingMode;
-    private final Predicate<String> ddlFilter;
     private final boolean readOnlyConnection;
 
     public MySqlConnectorConfig(Configuration config) {
         super(
                 MySqlConnector.class,
                 config,
-                config.getString(CommonConnectorConfig.TOPIC_PREFIX),
                 TableFilter.fromPredicate(MySqlConnectorConfig::isNotBuiltInTable),
                 true,
                 DEFAULT_SNAPSHOT_FETCH_SIZE,
@@ -989,10 +986,6 @@ public class MySqlConnectorConfig extends HistorizedRelationalDatabaseConnectorC
         final String gtidSetExcludes = config.getString(MySqlConnectorConfig.GTID_SOURCE_EXCLUDES);
         this.gtidSourceFilter = gtidSetIncludes != null ? Predicates.includesUuids(gtidSetIncludes)
                 : (gtidSetExcludes != null ? Predicates.excludesUuids(gtidSetExcludes) : null);
-
-        // Set up the DDL filter
-        final String ddlFilter = config.getString(SchemaHistory.DDL_FILTER);
-        this.ddlFilter = (ddlFilter != null) ? Predicates.includes(ddlFilter) : (x -> false);
     }
 
     public boolean useCursorFetch() {
@@ -1175,10 +1168,6 @@ public class MySqlConnectorConfig extends HistorizedRelationalDatabaseConnectorC
 
     public static boolean isNotBuiltInTable(TableId id) {
         return !isBuiltInDatabase(id.catalog());
-    }
-
-    public Predicate<String> getDdlFilter() {
-        return ddlFilter;
     }
 
     public boolean isReadOnlyConnection() {

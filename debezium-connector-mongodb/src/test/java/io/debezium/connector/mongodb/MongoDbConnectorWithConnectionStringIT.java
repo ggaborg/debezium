@@ -14,9 +14,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
 
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -290,7 +288,7 @@ public class MongoDbConnectorWithConnectionStringIT extends AbstractMongoConnect
         var discovery = new ReplicaSetDiscovery(context);
         var sets = discovery.getReplicaSets();
         var replicaSet = sets.all().get(0);
-        return context.getConnectionContext().primaryFor(replicaSet, context.filters(), connectionErrorHandler(3));
+        return context.getConnectionContext().primaryFor(replicaSet, context.filters(), TestHelper.connectionErrorHandler(3));
     }
 
     protected void storeDocuments(String dbName, String collectionName, String pathOnClasspath) {
@@ -362,16 +360,6 @@ public class MongoDbConnectorWithConnectionStringIT extends AbstractMongoConnect
             fail("Unable to find or read file '" + pathOnClasspath + "': " + e.getMessage());
         }
         return results;
-    }
-
-    protected BiConsumer<String, Throwable> connectionErrorHandler(int numErrorsBeforeFailing) {
-        AtomicInteger attempts = new AtomicInteger();
-        return (desc, error) -> {
-            if (attempts.incrementAndGet() > numErrorsBeforeFailing) {
-                fail("Unable to connect to primary after " + numErrorsBeforeFailing + " errors trying to " + desc + ": " + error);
-            }
-            logger.error("Error while attempting to {}: {}", desc, error.getMessage(), error);
-        };
     }
 
     private String formatObjectId(ObjectId objId) {

@@ -39,17 +39,18 @@ public final class ConfigProperties {
     public static final Optional<String> OCP_USERNAME = stringOptionalProperty("test.ocp.username");
     public static final Optional<String> OCP_PASSWORD = stringOptionalProperty("test.ocp.password");
     public static final String OCP_PROJECT_DBZ = System.getProperty("test.ocp.project.debezium");
-    public static final String OCP_PROJECT_REGISTRY = System.getProperty("test.ocp.project.registry", "debezium-registry");
-    public static final String OCP_PROJECT_MYSQL = System.getProperty("test.ocp.project.mysql", "debezium-mysql");
-    public static final String OCP_PROJECT_POSTGRESQL = System.getProperty("test.ocp.project.postgresql", "debezium-postgresql");
-    public static final String OCP_PROJECT_SQLSERVER = System.getProperty("test.ocp.project.sqlserver", "debezium-sqlserver");
-    public static final String OCP_PROJECT_MONGO = System.getProperty("test.ocp.project.mongo", "debezium-mongo");
-    public static final String OCP_PROJECT_DB2 = System.getProperty("test.ocp.project.db2", "debezium-db2");
-    public static final String OCP_PROJECT_ORACLE = System.getProperty("test.ocp.project.oracle", "debezium-oracle");
+    public static final String OCP_PROJECT_REGISTRY = System.getProperty("test.ocp.project.registry", OCP_PROJECT_DBZ + "-registry");
+    public static final String OCP_PROJECT_MYSQL = System.getProperty("test.ocp.project.mysql", OCP_PROJECT_DBZ + "-mysql");
+    public static final String OCP_PROJECT_POSTGRESQL = System.getProperty("test.ocp.project.postgresql", OCP_PROJECT_DBZ + "-postgresql");
+    public static final String OCP_PROJECT_SQLSERVER = System.getProperty("test.ocp.project.sqlserver", OCP_PROJECT_DBZ + "-sqlserver");
+    public static final String OCP_PROJECT_MONGO = System.getProperty("test.ocp.project.mongo", OCP_PROJECT_DBZ + "-mongo");
+    public static final String OCP_PROJECT_DB2 = System.getProperty("test.ocp.project.db2", OCP_PROJECT_DBZ + "-db2");
+    public static final String OCP_PROJECT_ORACLE = System.getProperty("test.ocp.project.oracle", OCP_PROJECT_DBZ + "-oracle");
 
     public static final Optional<String> OCP_PULL_SECRET_PATH = stringOptionalProperty("test.ocp.pull.secret.paths");
 
     // Strimzi configuration
+    public static final String STRIMZI_OPERATOR_NAME = System.getProperty("test.strimzi.operator.name", "strimzi-cluster-operator");
     public static final boolean STRIMZI_OPERATOR_CONNECTORS = booleanProperty("test.strimzi.operator.connectors", true);
     public static final String STRIMZI_CRD_VERSION = System.getProperty("test.strimzi.crd.version", "v1beta2");
     public static final String STRIMZI_VERSION_KAFKA = System.getProperty("test.strimzi.version.kafka", "3.1.0");

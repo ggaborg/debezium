@@ -482,7 +482,7 @@ public abstract class CommonConnectorConfig {
                     + "The converters are defined using '<converter.prefix>.type' config option and configured using options '<converter.prefix>.<option>'");
 
     public static final Field SKIPPED_OPERATIONS = Field.create("skipped.operations")
-            .withDisplayName("skipped Operations")
+            .withDisplayName("Skipped Operations")
             .withType(Type.LIST)
             .withGroup(Field.createGroupEntry(Field.Group.ADVANCED, 11))
             .withWidth(Width.SHORT)
@@ -508,12 +508,12 @@ public abstract class CommonConnectorConfig {
     public static final Field SCHEMA_NAME_ADJUSTMENT_MODE = Field.create("schema.name.adjustment.mode")
             .withDisplayName("Schema Name Adjustment")
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 7))
-            .withEnum(SchemaNameAdjustmentMode.class, SchemaNameAdjustmentMode.AVRO)
+            .withEnum(SchemaNameAdjustmentMode.class, SchemaNameAdjustmentMode.NONE)
             .withWidth(Width.MEDIUM)
             .withImportance(Importance.LOW)
             .withDescription("Specify how schema names should be adjusted for compatibility with the message converter used by the connector, including: "
-                    + "'avro' replaces the characters that cannot be used in the Avro type name with underscore (default); "
-                    + "'none' does not apply any adjustment");
+                    + "'avro' replaces the characters that cannot be used in the Avro type name with underscore; "
+                    + "'none' does not apply any adjustment (default)");
 
     public static final Field QUERY_FETCH_SIZE = Field.create("query.fetch.size")
             .withDisplayName("Query fetch size")
@@ -595,7 +595,7 @@ public abstract class CommonConnectorConfig {
     private final int maxBatchSize;
     private final long maxQueueSizeInBytes;
     private final Duration pollInterval;
-    private final String logicalName;
+    protected final String logicalName;
     private final String heartbeatTopicsPrefix;
     private final Duration heartbeatInterval;
     private final Duration snapshotDelay;
@@ -616,14 +616,14 @@ public abstract class CommonConnectorConfig {
     private final EnumSet<Operation> skippedOperations;
     private final String taskId;
 
-    protected CommonConnectorConfig(Configuration config, String logicalName, int defaultSnapshotFetchSize) {
+    protected CommonConnectorConfig(Configuration config, int defaultSnapshotFetchSize) {
         this.config = config;
         this.emitTombstoneOnDelete = config.getBoolean(CommonConnectorConfig.TOMBSTONES_ON_DELETE);
         this.maxQueueSize = config.getInteger(MAX_QUEUE_SIZE);
         this.maxBatchSize = config.getInteger(MAX_BATCH_SIZE);
         this.pollInterval = config.getDuration(POLL_INTERVAL_MS, ChronoUnit.MILLIS);
         this.maxQueueSizeInBytes = config.getLong(MAX_QUEUE_SIZE_IN_BYTES);
-        this.logicalName = logicalName;
+        this.logicalName = config.getString(CommonConnectorConfig.TOPIC_PREFIX);
         this.heartbeatTopicsPrefix = config.getString(Heartbeat.HEARTBEAT_TOPICS_PREFIX);
         this.heartbeatInterval = config.getDuration(Heartbeat.HEARTBEAT_INTERVAL, ChronoUnit.MILLIS);
         this.snapshotDelay = Duration.ofMillis(config.getLong(SNAPSHOT_DELAY_MS));

@@ -5,6 +5,9 @@
  */
 package io.debezium.relational;
 
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
@@ -14,6 +17,7 @@ import org.apache.kafka.connect.source.SourceConnector;
 import io.debezium.config.ConfigDefinition;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
+import io.debezium.function.Predicates;
 import io.debezium.relational.Selectors.TableIdToStringMapper;
 import io.debezium.relational.Tables.TableFilter;
 import io.debezium.relational.history.AbstractSchemaHistory;
@@ -33,9 +37,9 @@ public abstract class HistorizedRelationalDatabaseConnectorConfig extends Relati
     private static final String DEFAULT_SCHEMA_HISTORY = "io.debezium.storage.kafka.history.KafkaSchemaHistory";
 
     private boolean useCatalogBeforeSchema;
-    private final String logicalName;
     private final Class<? extends SourceConnector> connectorClass;
     private final boolean multiPartitionMode;
+    private final Predicate<String> ddlFilter;
 
     /**
      * The database schema history class is hidden in the {@link #configDef()} since that is designed to work with a user interface,
@@ -60,28 +64,31 @@ public abstract class HistorizedRelationalDatabaseConnectorConfig extends Relati
             .create();
 
     protected HistorizedRelationalDatabaseConnectorConfig(Class<? extends SourceConnector> connectorClass,
-                                                          Configuration config, String logicalName,
+                                                          Configuration config,
                                                           TableFilter systemTablesFilter,
                                                           boolean useCatalogBeforeSchema,
                                                           int defaultSnapshotFetchSize,
                                                           ColumnFilterMode columnFilterMode,
                                                           boolean multiPartitionMode) {
-        super(config, logicalName, systemTablesFilter, TableId::toString, defaultSnapshotFetchSize, columnFilterMode, useCatalogBeforeSchema);
+        super(config, systemTablesFilter, TableId::toString, defaultSnapshotFetchSize, columnFilterMode, useCatalogBeforeSchema);
         this.useCatalogBeforeSchema = useCatalogBeforeSchema;
-        this.logicalName = logicalName;
         this.connectorClass = connectorClass;
         this.multiPartitionMode = multiPartitionMode;
+        this.ddlFilter = createDdlFilter(config);
     }
 
-    protected HistorizedRelationalDatabaseConnectorConfig(Class<? extends SourceConnector> connectorClass, Configuration config, String logicalName,
-                                                          TableFilter systemTablesFilter, TableIdToStringMapper tableIdMapper,
-                                                          boolean useCatalogBeforeSchema, ColumnFilterMode columnFilterMode,
+    protected HistorizedRelationalDatabaseConnectorConfig(Class<? extends SourceConnector> connectorClass,
+                                                          Configuration config,
+                                                          TableFilter systemTablesFilter,
+                                                          TableIdToStringMapper tableIdMapper,
+                                                          boolean useCatalogBeforeSchema,
+                                                          ColumnFilterMode columnFilterMode,
                                                           boolean multiPartitionMode) {
-        super(config, logicalName, systemTablesFilter, tableIdMapper, DEFAULT_SNAPSHOT_FETCH_SIZE, columnFilterMode, useCatalogBeforeSchema);
+        super(config, systemTablesFilter, tableIdMapper, DEFAULT_SNAPSHOT_FETCH_SIZE, columnFilterMode, useCatalogBeforeSchema);
         this.useCatalogBeforeSchema = useCatalogBeforeSchema;
-        this.logicalName = logicalName;
         this.connectorClass = connectorClass;
         this.multiPartitionMode = multiPartitionMode;
+        this.ddlFilter = createDdlFilter(config);
     }
 
     /**
@@ -117,6 +124,16 @@ public abstract class HistorizedRelationalDatabaseConnectorConfig extends Relati
 
     public boolean multiPartitionMode() {
         return multiPartitionMode;
+    }
+
+    public Predicate<String> getDdlFilter() {
+        return ddlFilter;
+    }
+
+    private Predicate<String> createDdlFilter(Configuration config) {
+        // Set up the DDL filter
+        final String ddlFilter = config.getString(SchemaHistory.DDL_FILTER);
+        return (ddlFilter != null) ? Predicates.includes(ddlFilter, Pattern.CASE_INSENSITIVE | Pattern.DOTALL) : (x -> false);
     }
 
     /**
